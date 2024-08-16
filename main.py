@@ -19,7 +19,7 @@ def black_scholes_price(S, K, T, r, sigma, option_type="call"):
     return price
 
 # Cache options data retrieval
-def get_options_data(ticker, expiration_date, risk_free_rate, threshold):
+def get_options_data(ticker, expiration_date, risk_free_rate):
     stock = yf.Ticker(ticker)
     options_chain = stock.option_chain(expiration_date)
     
@@ -56,9 +56,9 @@ def get_options_data(ticker, expiration_date, risk_free_rate, threshold):
     )
 
     # Filter for arbitrage opportunities
-    arbitrage_opportunities = options_data[options_data['Difference'] > threshold]
+    arbitrage_opportunities = options_data[options_data['Difference'] > 0.01]
     time_to_maturity = options_data['time_to_maturity'].iloc[0]  # Use the first row's time to maturity for display
-    return arbitrage_opportunities, stock_price, time_to_maturity, volatility
+    return arbitrage_opportunities, stock_price, time_to_maturity, volatility, options_data
 
 # Function to calculate put-call parity, theoretical values, and suggest action
 def check_put_call_parity_and_theoretical_value(call_price, put_price, stock_price, strike_price, time_to_maturity, risk_free_rate, volatility):
@@ -84,19 +84,19 @@ def check_put_call_parity_and_theoretical_value(call_price, put_price, stock_pri
 # Streamlit App
 
 # Title and Header
-st.title("Options Arbitrage Analyzer with Black-Scholes Pricing and Greeks Insights")
+st.title("Options Arbitrage Finder with Black-Scholes Pricing")
 st.header("Check for Arbitrage Opportunities using Put-Call Parity and Theoretical Option Pricing")
 
 # User Inputs with sliders
 ticker = st.text_input("Enter the Stock Ticker:", "AAPL")
 expiration_date = st.date_input("Select Option Expiration Date:", datetime(2024, 9, 20))
 risk_free_rate = st.slider("Enter the Risk-Free Rate (as a decimal):", 0.0, 0.1, 0.05, 0.01)
-arbitrage_threshold = st.slider("Set Arbitrage Threshold:", 0.0, 1.0, 0.5, 0.01)
+arbitrage_threshold = st.slider("Enter the Arbitrage Threshold (in $):", 0.0, 1.0, 0.01, 0.01)
 
 if st.button("Find Arbitrage Opportunities"):
     try:
         # Fetch and display arbitrage opportunities
-        arbitrage_opportunities, stock_price, time_to_maturity, volatility = get_options_data(ticker, expiration_date.strftime('%Y-%m-%d'), risk_free_rate, arbitrage_threshold)
+        arbitrage_opportunities, stock_price, time_to_maturity, volatility, options_data = get_options_data(ticker, expiration_date.strftime('%Y-%m-%d'), risk_free_rate)
         
         if not arbitrage_opportunities.empty:
             st.success("Arbitrage Opportunities Found!")
@@ -121,45 +121,12 @@ if st.button("Find Arbitrage Opportunities"):
                 plt.figure(figsize=(10, 6))
                 plt.bar(arbitrage_opportunities['strike'], arbitrage_opportunities['Difference'], 
                         color='blue', width=5, edgecolor='white', linewidth=1.5)
-                plt.axhline(0, color='white', linestyle='--', linewidth=1)
-                plt.title(f"Arbitrage Opportunities by Strike Price for {ticker}")
-                plt.xlabel("Strike Price")
-                plt.ylabel("Difference (|LHS - RHS|)")
-                plt.grid(True, which='both', linestyle='--', linewidth=0.7)
+                plt.xlabel('Strike Price')
+                plt.ylabel('Difference (|LHS - RHS|)')
+                plt.title('Arbitrage Opportunities by Strike Price')
                 st.pyplot(plt)
 
-            # Visualization: LHS vs. RHS Across Strike Prices
-            st.subheader("LHS vs. RHS Across Strike Prices")
-            with plt.style.context('dark_background'):
-                plt.figure(figsize=(10, 6))
-                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['LHS (C - P)'], 
-                         label='LHS (C - P)', marker='o', color='cyan', linewidth=2)
-                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['RHS (S - K * e^(-r(T-t)))'], 
-                         label='RHS (S - K * e^(-r(T-t)))', marker='x', color='magenta', linewidth=2)
-                plt.axhline(0, color='white', linestyle='--', linewidth=1)
-                plt.title(f"LHS vs. RHS Across Strike Prices for {ticker}")
-                plt.xlabel("Strike Price")
-                plt.ylabel("Value")
-                plt.legend()
-                plt.grid(True, which='both', linestyle='--', linewidth=0.7)
-                st.pyplot(plt)
-            
-            # Visualization: Theoretical Call and Put Prices
-            st.subheader("Theoretical Call and Put Prices Across Strike Prices")
-            with plt.style.context('dark_background'):
-                plt.figure(figsize=(10, 6))
-                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['Theoretical Call'], 
-                         label='Theoretical Call', marker='o', color='yellow', linewidth=2)
-                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['Theoretical Put'], 
-                         label='Theoretical Put', marker='x', color='orange', linewidth=2)
-                plt.title(f"Theoretical Call and Put Prices for {ticker}")
-                plt.xlabel("Strike Price")
-                plt.ylabel("Theoretical Price")
-                plt.legend()
-                plt.grid(True, which='both', linestyle='--', linewidth=0.7)
-                st.pyplot(plt)
-
-            # Visualization: Suggested Actions Distribution
+            # Visualization: Suggested Actions Plot with dark background
             st.subheader("Suggested Actions Distribution")
             with plt.style.context('dark_background'):
                 action_counts = arbitrage_opportunities['Suggested Action'].value_counts()
@@ -170,10 +137,48 @@ if st.button("Find Arbitrage Opportunities"):
                 plt.title('Suggested Arbitrage Actions')
                 st.pyplot(plt)
             
+            # Visualization: Theoretical Call vs. Actual Call Prices
+            st.subheader("Theoretical vs. Actual Call Prices")
+            with plt.style.context('dark_background'):
+                plt.figure(figsize=(10, 6))
+                plt.plot(options_data['strike'], options_data['Theoretical Call'], label='Theoretical Call Price', marker='o', color='green')
+                plt.plot(options_data['strike'], options_data['lastPrice_call'], label='Actual Call Price', marker='x', color='blue')
+                plt.xlabel('Strike Price')
+                plt.ylabel('Price')
+                plt.title('Theoretical vs. Actual Call Prices')
+                plt.legend()
+                st.pyplot(plt)
+            
+            # Visualization: Theoretical Put vs. Actual Put Prices
+            st.subheader("Theoretical vs. Actual Put Prices")
+            with plt.style.context('dark_background'):
+                plt.figure(figsize=(10, 6))
+                plt.plot(options_data['strike'], options_data['Theoretical Put'], label='Theoretical Put Price', marker='o', color='red')
+                plt.plot(options_data['strike'], options_data['lastPrice_put'], label='Actual Put Price', marker='x', color='purple')
+                plt.xlabel('Strike Price')
+                plt.ylabel('Price')
+                plt.title('Theoretical vs. Actual Put Prices')
+                plt.legend()
+                st.pyplot(plt)
+            
+            # Visualization: LHS vs. RHS Comparison with dark background
+            st.subheader("LHS vs. RHS Comparison")
+            with plt.style.context('dark_background'):
+                plt.figure(figsize=(10, 6))
+                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['LHS (C - P)'], 
+                         label='LHS (C - P)', marker='o', color='cyan')
+                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['RHS (S - K * e^(-r(T-t)))'], 
+                         label='RHS (S - K * e^(-r(T-t)))', marker='x', color='yellow')
+                plt.xlabel('Strike Price')
+                plt.ylabel('Value')
+                plt.title('LHS vs. RHS Comparison')
+                plt.legend()
+                st.pyplot(plt)
+            
             # Export Data
             st.subheader("Download Data")
+            filename = f"{ticker}_{expiration_date.strftime('%Y%m%d')}_arbitrage_opportunities.csv"
             csv = arbitrage_opportunities.to_csv(index=False)
-            filename = f'arbitrage_opportunities_{ticker}_{expiration_date.strftime("%Y%m%d")}.csv'
             st.download_button(
                 label="Download CSV",
                 data=csv,
