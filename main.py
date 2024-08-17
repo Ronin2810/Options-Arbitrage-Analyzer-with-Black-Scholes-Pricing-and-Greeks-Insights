@@ -170,3 +170,5 @@ if st.button("Find Arbitrage Opportunities"):
 
         else:
             st.warning("No Arbitrage Opportunities Found.")
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
