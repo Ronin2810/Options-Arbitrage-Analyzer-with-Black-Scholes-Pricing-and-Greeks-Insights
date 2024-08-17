@@ -193,18 +193,6 @@ if st.button("Find Arbitrage Opportunities"):
             plt.legend()
             st.pyplot(plt)
 
-            # Export Data
-            st.subheader("Download Data")
-            file_name = f"{ticker}_{expiration_date.strftime('%Y-%m-%d')}_arbitrage_opportunities.csv"
-            csv = arbitrage_opportunities.to_csv(index=False)
-            st.download_button(
-                label="Download CSV",
-                data=csv,
-                file_name=file_name,
-                mime='text/csv'
-            )
-
-
         else:
             st.warning("No Arbitrage Opportunities Found.")
     
