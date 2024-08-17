@@ -138,26 +138,30 @@ if st.button("Find Arbitrage Opportunities"):
                 st.pyplot(plt)
             
             # Visualization: Theoretical Call vs. Actual Call Prices
-            st.subheader("Theoretical vs. Actual Call Prices")
+            st.subheader("Theoretical Call vs. Actual Call Prices Across Strike Prices")
             with plt.style.context('dark_background'):
                 plt.figure(figsize=(10, 6))
-                plt.plot(options_data['strike'], options_data['Theoretical Call'], label='Theoretical Call Price', marker='o', color='green')
-                plt.plot(options_data['strike'], options_data['lastPrice_call'], label='Actual Call Price', marker='x', color='blue')
+                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['Theoretical Call'], 
+                        label='Theoretical Call', marker='o', color='green')
+                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['lastPrice_call'], 
+                        label='Actual Call', marker='x', color='blue')
                 plt.xlabel('Strike Price')
                 plt.ylabel('Price')
-                plt.title('Theoretical vs. Actual Call Prices')
+                plt.title('Theoretical Call vs. Actual Call Prices')
                 plt.legend()
                 st.pyplot(plt)
-            
+
             # Visualization: Theoretical Put vs. Actual Put Prices
-            st.subheader("Theoretical vs. Actual Put Prices")
+            st.subheader("Theoretical Put vs. Actual Put Prices Across Strike Prices")
             with plt.style.context('dark_background'):
                 plt.figure(figsize=(10, 6))
-                plt.plot(options_data['strike'], options_data['Theoretical Put'], label='Theoretical Put Price', marker='o', color='red')
-                plt.plot(options_data['strike'], options_data['lastPrice_put'], label='Actual Put Price', marker='x', color='purple')
+                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['Theoretical Put'], 
+                        label='Theoretical Put', marker='o', color='red')
+                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['lastPrice_put'], 
+                        label='Actual Put', marker='x', color='yellow')
                 plt.xlabel('Strike Price')
                 plt.ylabel('Price')
-                plt.title('Theoretical vs. Actual Put Prices')
+                plt.title('Theoretical Put vs. Actual Put Prices')
                 plt.legend()
                 st.pyplot(plt)
             
