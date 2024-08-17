@@ -6,26 +6,29 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import scipy.stats as si
 import requests
-from bs4 import BeautifulSoup
 
-# Function to fetch the latest 1-year Treasury yield
-def fetch_risk_free_rate():
-    try:
-        # URL for U.S. Department of the Treasury
-        url = "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView"
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, 'html.parser')
+# Function to fetch the 10-Year Treasury rate using FRED API
+def fetch_risk_free_rate_fred():
+    api_key = 'facfdd6e5c8599cdbf0598a7434a1bf4'  # Replace with your actual FRED API key
+    series_id = 'DGS10'  # 10-Year Treasury Constant Maturity Rate
+    base_url = 'https://api.stlouisfed.org/fred/series/observations'
+    
+    params = {
+        'series_id': series_id,
+        'api_key': api_key,
+        'file_type': 'json',
+        'sort_order': 'desc',
+        'limit': 1  # Get the most recent data point
+    }
+    
+    response = requests.get(base_url, params=params)
+    data = response.json()
 
-        # Find the latest 1-year yield value
-        rate_table = soup.find('table', {'class': 't-chart'})
-        latest_rate_row = rate_table.find_all('tr')[1]  # Get the second row (latest)
-        cells = latest_rate_row.find_all('td')
-        one_year_yield = float(cells[5].text.strip()) / 100  # Convert percentage to decimal
-
-        return one_year_yield
-
-    except Exception as e:
-        st.error("Failed to fetch risk-free rate. Please enter it manually.")
+    if 'observations' in data and data['observations']:
+        rate = float(data['observations'][0]['value']) / 100  # Convert percentage to decimal
+        return rate
+    else:
+        st.error("Failed to fetch risk-free rate from FRED API.")
         return None
 
 # Black-Scholes formula
@@ -111,7 +114,7 @@ st.title("Options Arbitrage Finder with Black-Scholes Pricing")
 st.header("Check for Arbitrage Opportunities using Put-Call Parity and Theoretical Option Pricing")
 
 # Fetch risk-free rate
-risk_free_rate = fetch_risk_free_rate()
+risk_free_rate = fetch_risk_free_rate_fred()
 
 if risk_free_rate is None:
     risk_free_rate = st.number_input("Enter the Risk-Free Rate (as a decimal):", min_value=0.0, value=0.05, step=0.01)
@@ -162,7 +165,7 @@ if st.button("Find Arbitrage Opportunities"):
                 action_counts = arbitrage_opportunities['Suggested Action'].value_counts()
                 plt.figure(figsize=(6, 6))
                 wedges, texts, autotexts = plt.pie(action_counts, labels=action_counts.index, autopct='%1.1f%%', 
-                                                   colors=['#66b3ff', '#99ff99', '#ff9999', '#ffcc99'], 
+                                                   colors=['#ff9999','#66b3ff','#99ff99','#ffcc99'], 
                                                    textprops=dict(color="white"))
                 plt.setp(autotexts, size=12, weight="bold")
                 plt.title('Distribution of Suggested Arbitrage Actions')
