@@ -5,6 +5,28 @@ import numpy as np
 from datetime import datetime
 import matplotlib.pyplot as plt
 import scipy.stats as si
+import requests
+from bs4 import BeautifulSoup
+
+# Function to fetch the latest 1-year Treasury yield
+def fetch_risk_free_rate():
+    try:
+        # URL for U.S. Department of the Treasury
+        url = "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView"
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Find the latest 1-year yield value
+        rate_table = soup.find('table', {'class': 't-chart'})
+        latest_rate_row = rate_table.find_all('tr')[1]  # Get the second row (latest)
+        cells = latest_rate_row.find_all('td')
+        one_year_yield = float(cells[5].text.strip()) / 100  # Convert percentage to decimal
+
+        return one_year_yield
+
+    except Exception as e:
+        st.error("Failed to fetch risk-free rate. Please enter it manually.")
+        return None
 
 # Black-Scholes formula
 def black_scholes_price(S, K, T, r, sigma, option_type="call"):
@@ -88,10 +110,17 @@ def check_put_call_parity_and_theoretical_value(call_price, put_price, stock_pri
 st.title("Options Arbitrage Finder with Black-Scholes Pricing")
 st.header("Check for Arbitrage Opportunities using Put-Call Parity and Theoretical Option Pricing")
 
-# User Inputs with sliders
+# Fetch risk-free rate
+risk_free_rate = fetch_risk_free_rate()
+
+if risk_free_rate is None:
+    risk_free_rate = st.number_input("Enter the Risk-Free Rate (as a decimal):", min_value=0.0, value=0.05, step=0.01)
+else:
+    st.success(f"Fetched Risk-Free Rate: {risk_free_rate:.4f}")
+
+# User Inputs
 ticker = st.text_input("Enter the Stock Ticker:", "AAPL")
 expiration_date = st.date_input("Select Option Expiration Date:", datetime(2024, 9, 20))
-risk_free_rate = st.slider("Enter the Risk-Free Rate (as a decimal):", 0.0, 0.1, 0.05, 0.01)
 trading_costs = st.number_input("Enter Expected Trading Costs:", min_value=0.0, value=0.05, step=0.01)
 
 if st.button("Find Arbitrage Opportunities"):
@@ -134,41 +163,35 @@ if st.button("Find Arbitrage Opportunities"):
                 plt.figure(figsize=(6, 6))
                 wedges, texts, autotexts = plt.pie(action_counts, labels=action_counts.index, autopct='%1.1f%%', 
                                                    colors=['#66b3ff', '#99ff99', '#ff9999', '#ffcc99'], 
-                                                   wedgeprops=dict(edgecolor='white'))
-                plt.title('Suggested Arbitrage Actions')
-                st.pyplot(plt)
-            
-            # Visualization: Theoretical Call vs. Actual Call Prices
-            st.subheader("Theoretical Call vs. Actual Call Prices Across Strike Prices")
-            with plt.style.context('dark_background'):
-                plt.figure(figsize=(10, 6))
-                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['Theoretical Call'], 
-                         label='Theoretical Call', marker='o', color='green')
-                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['lastPrice_call'], 
-                         label='Actual Call', marker='x', color='blue')
-                plt.xlabel('Strike Price')
-                plt.ylabel('Price')
-                plt.title('Theoretical Call vs. Actual Call Prices')
-                plt.legend()
+                                                   textprops=dict(color="white"))
+                plt.setp(autotexts, size=12, weight="bold")
+                plt.title('Distribution of Suggested Arbitrage Actions')
                 st.pyplot(plt)
 
-            # Visualization: Theoretical Put vs. Actual Put Prices
-            st.subheader("Theoretical Put vs. Actual Put Prices Across Strike Prices")
-            with plt.style.context('dark_background'):
-                plt.figure(figsize=(10, 6))
-                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['Theoretical Put'], 
-                         label='Theoretical Put', marker='o', color='red')
-                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['lastPrice_put'], 
-                         label='Actual Put', marker='x', color='yellow')
-                plt.xlabel('Strike Price')
-                plt.ylabel('Price')
-                plt.title('Theoretical Put vs. Actual Put Prices')
-                plt.legend()
-                st.pyplot(plt)
+            # Visualization: Theoretical Call vs. Actual Call Prices
+            st.subheader("Theoretical Call vs. Actual Call Prices")
+            plt.figure(figsize=(10, 6))
+            plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['Theoretical Call'], label="Theoretical Call", marker='o', linestyle='-', color='cyan')
+            plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['lastPrice_call'], label="Actual Call", marker='x', linestyle='--', color='magenta')
+            plt.xlabel('Strike Price')
+            plt.ylabel('Price')
+            plt.title('Theoretical Call vs. Actual Call Prices')
+            plt.legend()
+            st.pyplot(plt)
             
+            # Visualization: Theoretical Put vs. Actual Put Prices
+            st.subheader("Theoretical Put vs. Actual Put Prices")
+            plt.figure(figsize=(10, 6))
+            plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['Theoretical Put'], label="Theoretical Put", marker='o', linestyle='-', color='cyan')
+            plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['lastPrice_put'], label="Actual Put", marker='x', linestyle='--', color='magenta')
+            plt.xlabel('Strike Price')
+            plt.ylabel('Price')
+            plt.title('Theoretical Put vs. Actual Put Prices')
+            plt.legend()
+            st.pyplot(plt)
+
         else:
             st.warning("No Arbitrage Opportunities Found.")
     
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
-
