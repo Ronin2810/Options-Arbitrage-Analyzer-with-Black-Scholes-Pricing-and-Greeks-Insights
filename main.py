@@ -111,7 +111,7 @@ def check_put_call_parity_and_theoretical_value(call_price, put_price, stock_pri
 
 # Title and Header
 st.title("Options Arbitrage Finder with Black-Scholes Pricing")
-st.header("Check for Arbitrage Opportunities using Put-Call Parity and Theoretical Option Pricing")
+
 
 # Fetch risk-free rate
 risk_free_rate = fetch_risk_free_rate_fred()
@@ -149,7 +149,7 @@ if st.button("Find Arbitrage Opportunities"):
             }))
             
             # Visualization: Difference Plot with dark background and bar borders
-            st.subheader("Difference Between LHS and RHS for Each Strike Price")
+            # st.subheader("Difference Between LHS and RHS for Each Strike Price")
             with plt.style.context('dark_background'):
                 plt.figure(figsize=(10, 6))
                 plt.bar(arbitrage_opportunities['strike'], arbitrage_opportunities['Difference'], 
@@ -160,7 +160,7 @@ if st.button("Find Arbitrage Opportunities"):
                 st.pyplot(plt)
 
             # Visualization: Suggested Actions Plot with dark background
-            st.subheader("Suggested Actions Distribution")
+            # st.subheader("Suggested Actions Distribution")
             with plt.style.context('dark_background'):
                 action_counts = arbitrage_opportunities['Suggested Action'].value_counts()
                 plt.figure(figsize=(6, 6))
@@ -172,7 +172,7 @@ if st.button("Find Arbitrage Opportunities"):
                 st.pyplot(plt)
 
             # Visualization: Theoretical Call vs. Actual Call Prices
-            st.subheader("Theoretical Call vs. Actual Call Prices")
+            # st.subheader("Theoretical Call vs. Actual Call Prices")
             plt.figure(figsize=(10, 6))
             plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['Theoretical Call'], label="Theoretical Call", marker='o', linestyle='-', color='cyan')
             plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['lastPrice_call'], label="Actual Call", marker='x', linestyle='--', color='magenta')
@@ -183,7 +183,7 @@ if st.button("Find Arbitrage Opportunities"):
             st.pyplot(plt)
             
             # Visualization: Theoretical Put vs. Actual Put Prices
-            st.subheader("Theoretical Put vs. Actual Put Prices")
+            # st.subheader("Theoretical Put vs. Actual Put Prices")
             plt.figure(figsize=(10, 6))
             plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['Theoretical Put'], label="Theoretical Put", marker='o', linestyle='-', color='cyan')
             plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['lastPrice_put'], label="Actual Put", marker='x', linestyle='--', color='magenta')
