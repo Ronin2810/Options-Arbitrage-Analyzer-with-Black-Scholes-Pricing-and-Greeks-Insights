@@ -18,8 +18,8 @@ def black_scholes_price(S, K, T, r, sigma, option_type="call"):
     
     return price
 
-# Cache options data retrieval
-def get_options_data(ticker, expiration_date, risk_free_rate):
+# Options data retrieval
+def get_options_data(ticker, expiration_date, risk_free_rate, trading_costs):
     stock = yf.Ticker(ticker)
     options_chain = stock.option_chain(expiration_date)
     
@@ -51,26 +51,27 @@ def get_options_data(ticker, expiration_date, risk_free_rate):
             row['strike'], 
             row['time_to_maturity'], 
             risk_free_rate,
-            row['volatility']
+            row['volatility'],
+            trading_costs
         ), axis=1, result_type='expand'
     )
 
     # Filter for arbitrage opportunities
-    arbitrage_opportunities = options_data[options_data['Difference'] > 0.01]
+    arbitrage_opportunities = options_data[options_data['Difference'] > trading_costs]
     time_to_maturity = options_data['time_to_maturity'].iloc[0]  # Use the first row's time to maturity for display
-    return arbitrage_opportunities, stock_price, time_to_maturity, volatility, options_data
+    return arbitrage_opportunities, stock_price, time_to_maturity, volatility
 
 # Function to calculate put-call parity, theoretical values, and suggest action
-def check_put_call_parity_and_theoretical_value(call_price, put_price, stock_price, strike_price, time_to_maturity, risk_free_rate, volatility):
+def check_put_call_parity_and_theoretical_value(call_price, put_price, stock_price, strike_price, time_to_maturity, risk_free_rate, volatility, trading_costs):
     # Calculate LHS and RHS
     lhs = call_price - put_price  # Left-Hand Side (LHS)
     rhs = stock_price - strike_price * np.exp(-risk_free_rate * time_to_maturity)  # Right-Hand Side (RHS)
     difference = lhs - rhs
     
     # Determine arbitrage action
-    if difference > 0.01:
+    if difference > trading_costs:
         action = "Sell Call, Buy Put, Buy Stock, Short Bond"
-    elif difference < -0.01:
+    elif difference < -trading_costs:
         action = "Buy Call, Sell Put, Short Stock, Buy Bond"
     else:
         action = "No Arbitrage"
@@ -91,12 +92,12 @@ st.header("Check for Arbitrage Opportunities using Put-Call Parity and Theoretic
 ticker = st.text_input("Enter the Stock Ticker:", "AAPL")
 expiration_date = st.date_input("Select Option Expiration Date:", datetime(2024, 9, 20))
 risk_free_rate = st.slider("Enter the Risk-Free Rate (as a decimal):", 0.0, 0.1, 0.05, 0.01)
-arbitrage_threshold = st.slider("Enter the Arbitrage Threshold (in $):", 0.0, 1.0, 0.01, 0.01)
+trading_costs = st.number_input("Enter Expected Trading Costs:", min_value=0.0, value=0.05, step=0.01)
 
 if st.button("Find Arbitrage Opportunities"):
     try:
         # Fetch and display arbitrage opportunities
-        arbitrage_opportunities, stock_price, time_to_maturity, volatility, options_data = get_options_data(ticker, expiration_date.strftime('%Y-%m-%d'), risk_free_rate)
+        arbitrage_opportunities, stock_price, time_to_maturity, volatility = get_options_data(ticker, expiration_date.strftime('%Y-%m-%d'), risk_free_rate, trading_costs)
         
         if not arbitrage_opportunities.empty:
             st.success("Arbitrage Opportunities Found!")
@@ -142,9 +143,9 @@ if st.button("Find Arbitrage Opportunities"):
             with plt.style.context('dark_background'):
                 plt.figure(figsize=(10, 6))
                 plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['Theoretical Call'], 
-                        label='Theoretical Call', marker='o', color='green')
+                         label='Theoretical Call', marker='o', color='green')
                 plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['lastPrice_call'], 
-                        label='Actual Call', marker='x', color='blue')
+                         label='Actual Call', marker='x', color='blue')
                 plt.xlabel('Strike Price')
                 plt.ylabel('Price')
                 plt.title('Theoretical Call vs. Actual Call Prices')
@@ -156,41 +157,18 @@ if st.button("Find Arbitrage Opportunities"):
             with plt.style.context('dark_background'):
                 plt.figure(figsize=(10, 6))
                 plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['Theoretical Put'], 
-                        label='Theoretical Put', marker='o', color='red')
+                         label='Theoretical Put', marker='o', color='red')
                 plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['lastPrice_put'], 
-                        label='Actual Put', marker='x', color='yellow')
+                         label='Actual Put', marker='x', color='yellow')
                 plt.xlabel('Strike Price')
                 plt.ylabel('Price')
                 plt.title('Theoretical Put vs. Actual Put Prices')
                 plt.legend()
                 st.pyplot(plt)
             
-            # Visualization: LHS vs. RHS Comparison with dark background
-            st.subheader("LHS vs. RHS Comparison")
-            with plt.style.context('dark_background'):
-                plt.figure(figsize=(10, 6))
-                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['LHS (C - P)'], 
-                         label='LHS (C - P)', marker='o', color='cyan')
-                plt.plot(arbitrage_opportunities['strike'], arbitrage_opportunities['RHS (S - K * e^(-r(T-t)))'], 
-                         label='RHS (S - K * e^(-r(T-t)))', marker='x', color='yellow')
-                plt.xlabel('Strike Price')
-                plt.ylabel('Value')
-                plt.title('LHS vs. RHS Comparison')
-                plt.legend()
-                st.pyplot(plt)
-            
-            # Export Data
-            st.subheader("Download Data")
-            filename = f"{ticker}_{expiration_date.strftime('%Y%m%d')}_arbitrage_opportunities.csv"
-            csv = arbitrage_opportunities.to_csv(index=False)
-            st.download_button(
-                label="Download CSV",
-                data=csv,
-                file_name=filename,
-                mime='text/csv'
-            )
-
         else:
             st.warning("No Arbitrage Opportunities Found.")
+    
     except Exception as e:
-        st.error(f"An error occurred: {e}")
+        st.error(f"An error occurred: {str(e)}")
+
